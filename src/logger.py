@@ -54,11 +54,10 @@ class PacketLogger:
         try:
             self._packets.append(packet_info)
             if raw_packet is not None:
-                self._raw_packets.append(raw_packet)
-                
                 # CRITICAL RAM PROTECTION
-                if len(self._raw_packets) > self.config.max_memory_packets:
+                if len(self._raw_packets) >= self.config.max_memory_packets:
                     self._raw_packets.pop(0)  # Remove oldest packet (FIFO method)
+                self._raw_packets.append(raw_packet)
             
             if self._file_logger:
                 num = packet_info.get("number", 0)
