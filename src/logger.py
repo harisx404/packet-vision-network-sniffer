@@ -107,7 +107,7 @@ class PacketLogger:
         
         try:
             with open(filepath, "w", encoding="utf-8") as f:
-                json.dumps(data, f, default=_json_serializer, indent=2)
+                json.dump(data, f, default=_json_serializer, indent=2)
             return filepath
         except Exception as e:
             print(f"[ERROR] Failed to save JSON file: {e}")

@@ -5,6 +5,7 @@ Packet analysis module for dissecting packets into structured data.
 """
 
 import time
+from datetime import datetime
 from typing import Optional, Any, Tuple, Dict, List
 
 from scapy.all import Packet
