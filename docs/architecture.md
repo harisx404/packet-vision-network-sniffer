@@ -1,98 +1,163 @@
-# Architectural Documentation & Engineering Guide
-**Network Packet Sniffer**
+# Architecture & Engineering Guide
 
-This document serves as the technical wiki for understanding the underlying mechanics of the Network Packet Sniffer. It is intended for project maintainers, recruiters reviewing technical depth, and open-source contributors.
+> This document is the technical reference for the Network Packet Sniffer. It covers
+> the concurrency model, memory safety design, security controls, and testing strategy.
+> Intended for project maintainers, contributors, and technical reviewers.
 
 ---
 
-## 1. High-Level System Architecture
+## 1. System Architecture
 
-The tool is built on a highly modular architecture that completely isolates packet capture from presentation and logging.
+The tool is built on a modular Producer-Consumer architecture that completely isolates the packet capture pipeline from UI rendering and data logging. This ensures the capture rate is never throttled by slow rendering or disk I/O.
 
-### Data Flow Diagram
-```text
-[Network Interface] 
-       ↓ (Raw Bytes)
-[Scapy Sniff Loop (Producer Thread)] 
-       ↓ (Thread-Safe put_nowait)
-[queue.Queue Buffer]
-       ↓ (Blocking get)
-[Processing Loop (Consumer Thread - _process_queue)]
-       ├→ [PacketFilter] (BPF & CIDR IP Matching)
-       ├→ [PacketAnalyzer] (Layer Dissection & Flag Extraction)
-       ├→ [DisplayManager] (ANSI-Sanitized Rich UI Rendering)
-       └→ [PacketLogger] (Memory Capped JSON/PCAP Export)
+### Data Flow
+
+```
+[ Network Interface ]
+        │  (raw bytes via libpcap / Npcap)
+        ▼
+[ Producer Thread — Scapy sniff() ]
+        │  queue.put_nowait()  →  drops silently on queue.Full
+        ▼
+[ queue.Queue  (maxsize=1000) ]
+        │  queue.get(timeout=0.5)
+        ▼
+[ Consumer Thread — _process_queue() ]
+        ├── PacketFilter   →  BPF + Python-level CIDR / port checks
+        ├── PacketAnalyzer →  L3/L4 dissection, flag extraction, DNS parsing
+        ├── DisplayManager →  Rich UI rendering (color-coded, sanitized)
+        └── PacketLogger   →  Memory-capped JSON / CSV / PCAP export
 ```
 
-## 2. Core Module Details
+### Thread Lifecycle
 
-### A. Packet Capture Layer (`sniffer.py`)
-- **Concurrency Model**: Uses a dedicated daemon thread for Scapy's blocking `sniff()` call (Producer), and a separate processing thread (Consumer).
-- **Decoupling**: Strictly separates capture from processing using `queue.Queue(maxsize=1000)` to prevent the UI rendering pipeline from slowing down the capture rate. If the queue is full due to UI lag, packets are dropped immediately to protect memory.
-- **Memory Safety (Logger)**: The `PacketLogger` implements a FIFO "Sliding Window" for raw packet storage. When the internal `_raw_packets` list exceeds `max_memory_packets` (default 50,000), older packets are popped to prevent `MemoryError` during infinite captures.
+| Thread | Type | Role |
+|---|---|---|
+| `CaptureThread` | daemon | Runs Scapy `sniff()` indefinitely; terminates when `_stop_event` is set |
+| `ProcessThread` | daemon | Drains the queue; exits when `_running` is `False` and queue is empty |
+| Main thread | regular | Blocks on `time.sleep(0.1)` loop; catches `KeyboardInterrupt` and calls `stop()` |
 
-### B. Filtering Engine (`filters.py`)
-- **Layered Filtering**: Supports filtering at the `IP`, `TCP`, `UDP`, and `ICMP` levels.
-- **BPF Compliance**: Fully integrates Berkeley Packet Filter (BPF) syntax for high-performance packet selection.
-- **CIDR Validation**: Uses Python's `ipaddress` module to safely validate and match IP addresses against CIDR ranges.
+---
 
-### C. Analysis Engine (`analyzer.py`)
-- **L3/L4 Dissection**: Automatically handles the hierarchical structure of Scapy packets (IP -> TCP/UDP).
-- **Transport Protocol Detection**:
-    - Extracts TCP Flags (SYN, ACK, FIN, RST, PSH, URG).
-    - Detects UDP fragmented packets.
-    - Identifies DNS queries/responses (Port 53).
-    - Extracts HTTP/S headers.
-- **Payload Sanitization (Critical)**:
-    - The `format_payload` function strips all ANSI escape codes (`\x1b`, `\033`) from raw packet data.
-    - **Reason**: Prevents malicious payloads from executing escape sequences in the terminal (e.g., clearing the screen or changing text colors to hide data).
+## 2. Module Breakdown
 
-### D. Display Engine (`display.py`)
-- **UI Framework**: Built entirely on `rich` for modern terminal UI features.
-- **Live Dashboard**: A "Producer/Consumer" UI loop that updates the dashboard only when new data is available in the queue, preventing CPU spinlock.
-- **Data Tables**: Uses `rich.table` for displaying packet lists, with syntax highlighting based on protocol type.
-- **Progress Indicators**: Real-time spinners and progress bars for capture duration and data transfer.
+### `sniffer.py` — Orchestration Engine
 
-## 3. Performance & Scalability Considerations
+The central coordinator. Instantiates all sub-components and manages the two daemon threads.
 
-### A. Handling High Traffic Environments
-- **Scenario**: A busy university network or ISP connection.
-- **Mitigation**:
-    1.  **Queue Overflow**: The `put_nowait()` method will raise a `queue.Full` exception if the buffer is full. The `_packet_handler` thread catches this and silently drops the packet, prioritizing system stability over completeness.
-    2.  **CPU Load**: Heavy string formatting in `analyzer.py` can be costly.
-    3.  **Solution**: The `PacketAnalyzer` returns a structured dictionary. The `DisplayManager` is optimized to only update specific cells in the `Table` widget rather than redrawing the entire screen.
+Key design decisions:
+- **`put_nowait()` over `put()`**: The Scapy callback must never block. If the queue is full (Consumer is lagging), the packet is silently dropped to protect the capture rate and memory.
+- **`stop_filter` lambda**: Scapy's `stop_filter` parameter is polled on each captured packet. When `_stop_event` is set, Scapy's internal loop exits cleanly without requiring `os.kill()` or thread interruption.
+- **`join(timeout=3)`**: Both threads are given 3 seconds to finish draining before the main thread proceeds to export and summary rendering.
 
-### B. Memory Management
-- **Stateless Capture**: The `sniff()` function is configured with `store=False` to prevent Scapy from building a linked list of all packets in RAM.
-- **Buffer Control**: The consumer loop strictly enforces buffer limits, ensuring the application can run indefinitely on a standard laptop without memory leaks.
+### `analyzer.py` — Protocol Dissection Engine
 
-## 4. Security Architecture
+Converts raw Scapy `Packet` objects into clean Python dictionaries.
 
-### A. Privilege Escalation Prevention
-- **Root Detection**: The application uses `os.geteuid()` (Linux/macOS) and `ctypes` (Windows) to detect root/admin privileges. It crashes immediately with a clean exit if not root, preventing the application from entering a "failed" state where it might display partial data.
+Dissection hierarchy:
+1. **Ethernet (L2)**: Extracts source and destination MAC addresses.
+2. **IP / IPv6 (L3)**: Extracts source/destination IPs, TTL, and protocol number.
+3. **TCP / UDP / ICMP / ARP (L4)**: Extracts ports, flags, sequence numbers, ICMP type/code, and ARP operation.
+4. **Application layer**: Identifies DNS queries/responses (Port 53) and common services via `COMMON_PORTS` lookup.
 
-### B. Terminal Injection Prevention
-- **The Threat**: A malicious actor could send a packet containing `\x1b[2J\x1b[3J` (Clear Screen) or `\x1b[31m` (Red Text).
-- **The Fix**: The `PacketAnalyzer.format_payload` method explicitly replaces all non-printable ASCII characters (including `\x1b` and `\033` sequences) with a neutral `.` character.
+Timestamp extraction reads `packet.time` (the kernel-assigned epoch timestamp from libpcap), falling back to `time.time()` if the attribute is missing.
 
-## 5. Testing Strategy
+### `filters.py` — Layered Filtering Engine
 
-### A. Unit Testing (pytest)
-- **Isolate Layer Behavior**: Tests for `PacketAnalyzer` verify that TCP flags are correctly extracted from mock packet objects without needing a live network interface.
-- **Filter Validation**: Uses `ipaddress` logic to verify CIDR masking.
+Applies two layers of filtering:
 
-### B. Integration Testing
-- **File I/O**: Ensures JSON and CSV exports do not corrupt data and can serialize complex network objects.
+1. **BPF (kernel level)**: A BPF string is constructed from the user's protocol/IP/port flags and passed directly to Scapy. The kernel discards non-matching packets before they reach Python, significantly reducing CPU load on busy networks.
+2. **Python level**: For cases BPF cannot handle (e.g., CIDR block matching, application-level protocol detection), `should_capture()` performs a secondary evaluation in the Consumer thread.
 
-## 6. Environment & Dependencies
+CIDR matching uses Python's `ipaddress.ip_network()` to correctly evaluate whether a packet IP falls within a given subnet (e.g., `192.168.1.0/24`).
 
-### A. OS Compatibility
-- **Linux/macOS**: Full support via Scapy's raw sockets.
-- **Windows**: Requires Npcap to be installed manually.
+### `display.py` — Terminal UI
 
-### B. Python Environment
-- **Version**: Python 3.9+
-- **Libraries**:
-    - `scapy`: Packet manipulation.
-    - `rich`: Terminal rendering.
-    - `colorama`: Windows ANSI support.
+Built entirely on the [Rich](https://github.com/Textualize/rich) library. Key rendering choices:
+
+- **`Console(highlight=False)`**: Disables Rich's auto-highlighting, which prevents it from accidentally re-coloring IP addresses and other captured data in unintended ways.
+- **Packet lines**: Rendered as `rich.text.Text` objects with per-segment styles rather than markup strings, avoiding markup injection from packet content.
+- **Payload panel**: Wrapped in a `Panel` with a dim magenta border, clearly separating raw hex/ASCII data from the packet summary line.
+- **Stats table**: Uses `box.SIMPLE` with fixed-width columns to guarantee alignment is stable regardless of terminal width.
+
+### `logger.py` — Memory-Safe Data Export
+
+**FIFO Memory Cap (Critical Path)**:
+
+```python
+if len(self._raw_packets) >= self.config.max_memory_packets:
+    self._raw_packets.pop(0)   # evict oldest before appending new
+self._raw_packets.append(raw_packet)
+```
+
+The check uses `>=` and pops *before* appending. This guarantees the list length never exceeds `max_memory_packets` at any point, even transiently. The default limit is 50,000 packets.
+
+**JSON Serialization**: Custom `_json_serializer` handles `bytes` objects (converts to hex string) and falls back to `str()` for any unknown Scapy field types, preventing `TypeError` crashes during export.
+
+### `utils.py` — Shared Utilities
+
+`format_payload(payload, max_size)` is the primary security boundary for terminal output:
+
+```python
+for b in chunk:
+    if 32 <= b <= 126:   # printable ASCII range only
+        ascii_part += chr(b)
+    else:
+        ascii_part += "."
+```
+
+Any byte outside the standard printable range — including `\x1b` (ANSI escape), `\x07` (bell), and null bytes — is replaced with a neutral `.` character. This prevents a malicious host from embedding terminal control sequences inside packet payloads to manipulate the operator's screen.
+
+---
+
+## 3. Performance Considerations
+
+### High-Traffic Environments
+
+On a busy interface (e.g., a university switch span port), packet rate can exceed 10,000 pps. The queue acts as a bounded buffer absorbing burst traffic. If the Consumer thread cannot keep up, `queue.Full` is raised and caught silently in `_packet_handler`. The application remains stable at the cost of dropping excess packets.
+
+### CPU Load
+
+String formatting in `analyzer.py` is the primary CPU cost per packet. The analyzer returns a plain `dict`, leaving all formatting work to `display.py`. This means the `--quiet` mode (`-q`) is significantly faster, as the Consumer skips all Rich rendering and only runs the analyzer and logger.
+
+---
+
+## 4. Security Controls
+
+### Privilege Check
+
+On startup, the application checks for root/admin privileges using `ctypes.windll.shell32.IsUserAnAdmin()` (Windows) or `os.geteuid() == 0` (POSIX). A failed check triggers `sys.exit(1)` immediately, before any network socket is opened.
+
+### Terminal Injection Prevention
+
+**Threat**: A malicious server sends a response payload containing `\x1b[2J` (clear screen) or `\x1b[31m` (change text color). If printed directly, this can be used to hide captured output or mislead the operator.
+
+**Mitigation**: `utils.format_payload()` enforces a strict byte allowlist, rendering the attack inert. The hex column is also safe — it outputs hex digits only (e.g., `1b`), which carry no special meaning to a terminal emulator.
+
+---
+
+## 5. Testing
+
+Tests are located in `tests/` and use `pytest` with mock Scapy packet fixtures defined in `conftest.py`. No live network interface is required to run the test suite.
+
+```bash
+python -m pytest tests/ -v
+```
+
+| Test File | Coverage Area |
+|---|---|
+| `test_analyzer.py` | TCP/UDP/ICMP/DNS dissection correctness |
+| `test_filters.py` | Protocol, IP, CIDR, and port filter logic |
+| `test_utils.py` | Byte formatting, MAC formatting, IP validation |
+
+---
+
+## 6. Dependencies
+
+| Library | Version | Purpose |
+|---|---|---|
+| `scapy` | ≥ 2.5.0 | Packet capture and protocol dissection |
+| `rich` | ≥ 13.0.0 | Terminal UI rendering |
+| `colorama` | ≥ 0.4.6 | Windows ANSI escape code support |
+| `pytest` | ≥ 7.0.0 | Test framework |
+| `pytest-mock` | ≥ 3.0.0 | Mock fixtures for unit tests |

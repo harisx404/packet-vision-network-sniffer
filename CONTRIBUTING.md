@@ -1,23 +1,62 @@
-# Contributing to CodeAlpha Network Sniffer
+# Contributing
 
-First off, thank you for considering contributing to this project! 
+Thank you for your interest in contributing to the Network Packet Sniffer. This document outlines the development guidelines, architectural constraints, and the pull request process.
 
-## 1. Where do I go from here?
-If you've noticed a bug or have a feature request, please open an issue on GitHub. If you'd like to submit code, please open a Pull Request (PR).
+## Getting Started
 
-## 2. Setting up your environment
-1. Fork the repo and clone it locally.
-2. Ensure you are using Python 3.9 or higher.
-3. Install dependencies: `pip install -r requirements.txt`.
+1. Fork the repository and clone it locally.
+2. Ensure you are running Python 3.9 or higher.
+3. Install all dependencies: `pip install -r requirements.txt`
+4. Run the test suite to confirm your environment is healthy:
+   ```bash
+   python -m pytest tests/ -v
+   ```
 
-## 3. Architecture Rules (Strict)
-This project adheres to specific architectural guidelines to maintain performance and security. If your PR violates these, it will be rejected:
-- **No Blocking the Sniffer**: Never place `time.sleep()`, file I/O operations, or heavy computations inside the `_packet_handler` scapy callback. All heavy processing must occur in the Consumer thread.
-- **Memory Safety**: Do not enable `store=True` in Scapy. Memory buffers must use strict FIFO capping.
-- **Terminal Injection**: Do not print raw payload bytes to the screen. All byte representations must pass through the ANSI sanitizer in `utils.py`.
+## Development Workflow
 
-## 4. Submitting a Pull Request
-1. Create a new branch: `git checkout -b feature-name`
-2. Commit your changes: `git commit -m "feat: added new protocol dissection"` (Use Conventional Commits).
-3. Ensure all tests pass: `python -m pytest tests/`
-4. Push to the branch and open a PR.
+1. Create a dedicated branch for your work:
+   ```bash
+   git checkout -b feat/your-feature-name
+   ```
+2. Make your changes and write or update tests where applicable.
+3. Commit using [Conventional Commits](https://www.conventionalcommits.org/):
+   ```
+   feat: add IPv6 packet dissection
+   fix: handle malformed ICMP checksum
+   docs: update architecture guide
+   refactor: simplify BPF string builder
+   ```
+4. Push your branch and open a Pull Request against `main`.
+
+## Architectural Constraints
+
+This project enforces strict rules to maintain performance and security. Pull requests that violate these will not be merged.
+
+### Threading Rules
+
+- **Never block the capture thread.** The `_packet_handler` Scapy callback must remain near-zero latency. No file I/O, `time.sleep()`, or heavy computation is allowed inside it.
+- All analysis and display work happens exclusively in the Consumer thread (`_process_queue`).
+
+### Memory Safety Rules
+
+- **Do not set `store=True`** in Scapy's `sniff()` call. This causes unlimited heap growth and will crash the application.
+- The `PacketLogger._raw_packets` list must remain bounded by `Config.max_memory_packets` via the FIFO pop-before-append pattern in `logger.py`.
+
+### Security Rules
+
+- **Do not print raw bytes to the terminal.** All payload data must pass through `utils.format_payload()`, which sanitizes ANSI escape codes, before being rendered.
+- Any new display path that renders packet content must enforce the same byte-range check (`32 <= byte <= 126`).
+
+## Code Style
+
+- Type annotations are required on every function signature.
+- Google-style docstrings are required on every public class and method.
+- Lines should not exceed 100 characters.
+- No inline comments that simply restate what the code already says (e.g., `# returns the value`).
+
+## Reporting Issues
+
+Please open a GitHub Issue and include:
+- Your OS and Python version
+- The exact command you ran
+- The full traceback or error output

@@ -1,38 +1,44 @@
-<h1 align="center">
-  🛡️ CodeAlpha Network Sniffer
-</h1>
+<h1 align="center">Network Packet Sniffer</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.9+-blue.svg" alt="Python 3.9+">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License MIT">
-  <img src="https://img.shields.io/badge/Internship-CodeAlpha-blueviolet.svg" alt="CodeAlpha">
+  <img src="https://img.shields.io/badge/Python-3.9+-3776AB.svg?style=flat&logo=python&logoColor=white" alt="Python 3.9+">
+  <img src="https://img.shields.io/badge/License-MIT-22c55e.svg?style=flat" alt="License MIT">
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-6366f1.svg?style=flat" alt="Platform">
+  <img src="https://img.shields.io/badge/Internship-CodeAlpha-8b5cf6.svg?style=flat" alt="CodeAlpha">
 </p>
 
 <p align="center">
-  <b>A professional, multithreaded network packet sniffer built for the CodeAlpha Cybersecurity Internship.</b>
+  A command-line network packet sniffer engineered with a Producer-Consumer threading architecture,<br>
+  deep protocol dissection, memory safety controls, and a rich terminal interface.
 </p>
 
 ---
 
-## 📌 Overview
+## Overview
 
-This project is a high-performance, command-line network packet sniffer written entirely in Python. Unlike basic sniffers, this tool is engineered with a **Producer-Consumer threading architecture**, ensuring zero dropped packets even during high-traffic bursts. It extracts and analyzes L3/L4 protocols (TCP, UDP, ICMP, DNS) directly from raw bytes, featuring advanced security measures like **Memory Buffer Capping** and **ANSI Payload Sanitization**.
+This tool captures and analyzes live network traffic directly from raw sockets. It is designed to give users granular, real-time visibility into what is traveling across their network interface — from DNS resolution queries to raw TCP payload bytes — all from a clean, color-coded terminal display.
 
-## ✨ Features
+The architecture deliberately separates the capture pipeline from the presentation layer, which means the UI can never block the sniffer from capturing packets, even under heavy load.
 
-- **Multithreaded Architecture**: Uses `queue.Queue` to separate blocking packet capture (Producer) from the Rich-based UI rendering pipeline (Consumer).
-- **RAM Protection**: Scapy's default in-memory storage is disabled. A custom Sliding Window FIFO queue prevents `MemoryError` and RAM exhaustion during infinite captures.
-- **Terminal Security**: Network payloads are aggressively sanitized to prevent malicious ANSI escape code (`\x1b`) terminal injection attacks.
-- **Deep Dissection**: Automatically parses TCP flags, UDP ports, ICMP codes, ARP operations, and DNS queries.
-- **Beautiful UI**: Uses the `rich` library to render a clean, color-coded, and highly readable console interface.
-- **Export Capabilities**: Export your captures to JSON, CSV, or Wireshark-compatible PCAP files.
-- **Advanced Filtering**: Support for raw BPF filters, protocol types, CIDR block IP matching, and port filtering.
+## Features
 
----
+| Feature | Description |
+|---|---|
+| **Multithreaded Capture** | Producer thread captures packets; Consumer thread analyzes and renders them independently |
+| **Deep Protocol Dissection** | Parses TCP flags, UDP ports, ICMP types, ARP operations, and DNS queries |
+| **RAM Protection** | Sliding-window FIFO buffer caps memory usage; `store=False` prevents Scapy heap exhaustion |
+| **Terminal Security** | All payload bytes are sanitized to prevent ANSI escape code terminal injection |
+| **Flexible Filtering** | BPF expressions, protocol types, CIDR block IP matching, and port filtering |
+| **Data Export** | Capture to JSON, CSV, or Wireshark-compatible PCAP |
+| **Rich Terminal UI** | Color-coded protocol output, hex/ASCII payload viewer, and session statistics |
 
-## 🚀 Installation
+## Requirements
 
-This tool utilizes raw network sockets. **Administrative/Root privileges are required.**
+- Python 3.9 or higher
+- **Administrator or root privileges** (raw socket access)
+- **Windows only**: [Npcap](https://npcap.com/) must be installed
+
+## Installation
 
 ```bash
 # 1. Clone the repository
@@ -42,48 +48,62 @@ cd CodeAlpha_NetworkSniffer
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Test the setup using the demo script
+# 3. Verify the installation with the demo script
 sudo python run_demo.py
 ```
 
-## 💻 Usage
+## Usage
 
-Start the sniffer by running `main.py` with `sudo` (Linux/macOS) or from an Administrator Command Prompt (Windows).
+All capture commands require elevated privileges. Use `sudo` on Linux/macOS or run from an **Administrator** terminal on Windows.
 
-### Basic Commands
+### Basic Capture
+
 ```bash
-# Capture unlimited traffic on the default interface
+# Capture all traffic on the default interface
 sudo python main.py
 
 # List all available network interfaces
 sudo python main.py --list-interfaces
 
-# Capture exactly 100 packets on eth0
+# Capture exactly 100 packets on a specific interface
 sudo python main.py -i eth0 -c 100
 ```
 
-### Advanced Filtering
+### Filtering
+
 ```bash
-# Capture only HTTP traffic (port 80) and show verbose details
-sudo python main.py -p tcp --port 80 -v
+# Capture only TCP traffic with verbose flag/sequence details
+sudo python main.py -p tcp -v
 
-# Show side-by-side Hex and ASCII payloads
-sudo python main.py --payload
+# Filter by source IP using CIDR notation
+sudo python main.py --src-ip 192.168.1.0/24
 
-# Use a raw BPF filter
+# Use a raw BPF expression for maximum control
 sudo python main.py -f "udp and port 53"
 ```
 
-### Exporting Data
-```bash
-# Save to a JSON file
-sudo python main.py -c 50 -o capture.json
+### Payload Inspection
 
-# Export to a Wireshark PCAP file
-sudo python main.py --save-pcap traffic.pcap
+```bash
+# Display hex/ASCII payload alongside each TCP packet
+sudo python main.py -p tcp --payload
+
+# Capture HTTPS traffic and inspect payloads (TLS handshake bytes)
+sudo python main.py -p tcp --port 443 --payload
 ```
 
----
+### Exporting Data
+
+```bash
+# Auto-generate a timestamped JSON export
+sudo python main.py -c 50 -o capture.json
+
+# Export to CSV for spreadsheet analysis
+sudo python main.py -c 50 -o capture.csv --format csv
+
+# Save a Wireshark-compatible PCAP file
+sudo python main.py --save-pcap traffic.pcap
+```
 
 ## 📸 Screenshots
 
@@ -98,30 +118,58 @@ sudo python main.py --save-pcap traffic.pcap
 
 ![Live Capture 4](docs/screenshots/SS4.png)
 
-### Automated Background Demo
-*Programmatic execution showing graceful thread handling and data exports.*
+### Automated Demo Script
+*Programmatic execution showing graceful thread handling and JSON export.*
 
 ![Demo Script 1](docs/screenshots/demo_script-1.png)
 
 ![Demo Script 2](docs/screenshots/demo_script-2.png)
 
+## Project Structure
+
+```
+CodeAlpha_NetworkSniffer/
+├── main.py                  # CLI entry point and argument parser
+├── run_demo.py              # Standalone demo and smoke-test script
+├── requirements.txt         # Python dependencies
+├── setup.py                 # Package configuration
+├── src/
+│   ├── sniffer.py           # Core engine: thread management and lifecycle
+│   ├── analyzer.py          # L3/L4 packet dissection logic
+│   ├── filters.py           # BPF generation and Python-level filtering
+│   ├── display.py           # Rich-powered terminal UI
+│   ├── logger.py            # JSON, CSV, PCAP export with memory capping
+│   ├── config.py            # Dataclass config, constants, and color maps
+│   └── utils.py             # Shared helpers: formatting, validation, sanitization
+├── docs/
+│   └── architecture.md      # Deep-dive engineering and security documentation
+└── tests/
+    ├── conftest.py           # Shared pytest fixtures (mock packets)
+    ├── test_analyzer.py      # Protocol dissection unit tests
+    ├── test_filters.py       # BPF and CIDR filtering unit tests
+    └── test_utils.py         # Utility function unit tests
+```
+
+## Running Tests
+
+The test suite uses `pytest` with mock Scapy packets — no live network interface is needed.
+
+```bash
+python -m pytest tests/ -v
+```
+
+## Architecture
+
+For a detailed breakdown of the threading model, memory safety design, security controls, and performance considerations, see the [Architecture Guide](docs/architecture.md).
+
+## Contributing
+
+Contributions and issue reports are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a pull request.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
 ---
 
-## 📂 Architecture
-
-- **`sniffer.py`**: The orchestration engine managing the Producer and Consumer daemon threads.
-- **`logger.py`**: Handles strict memory-capped FIFO buffering and serialization to JSON/CSV/PCAP.
-- **`filters.py`**: Combines native Scapy BPF generation with custom Python-level CIDR evaluations.
-- **`analyzer.py`**: Deep-packet inspection logic and protocol categorization.
-- **`display.py`**: ANSI-sanitized, rich-powered UI rendering.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read the [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-*Engineered for the CodeAlpha Internship Program. Developed with a focus on performance, memory safety, and terminal security.*
+*Developed for the CodeAlpha Cybersecurity Internship — focused on performance, memory safety, and terminal security.*

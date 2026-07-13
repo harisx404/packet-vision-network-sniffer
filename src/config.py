@@ -67,7 +67,7 @@ TOOL_INFO = {
     "author": "Haris",
     "github": "harisx404",
     "repo": "CodeAlpha_NetworkSniffer",
-    "description": "Professional network traffic analysis tool",
+    "description": "Network traffic analysis tool",
     "internship": "CodeAlpha Cybersecurity Internship",
 }
 

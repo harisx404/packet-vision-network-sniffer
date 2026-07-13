@@ -23,21 +23,22 @@ class DisplayManager:
     """Handles all terminal output formatting using the Rich library."""
 
     def __init__(self, verbose: bool = False, show_payload: bool = False, quiet: bool = False):
-        self.console = Console()
+        self.console = Console(highlight=False)
         self.verbose = verbose
         self.show_payload = show_payload
         self.quiet = quiet
         self._packet_line_count = 0
 
     def print_banner(self) -> None:
-        """Print the application ASCII banner."""
+        """Print the application startup banner inside a styled panel."""
         if self.quiet:
             return
         try:
             panel = Panel(
                 Text(BANNER, justify="center", style="bold white"),
                 border_style="bright_cyan",
-                box=box.DOUBLE
+                box=box.DOUBLE,
+                padding=(0, 1),
             )
             self.console.print(panel)
             self.console.print()
@@ -150,26 +151,34 @@ class DisplayManager:
             pass
 
     def print_stats(self, stats: Dict[str, Any]) -> None:
-        """Print a beautifully aligned protocol distribution summary table."""
+        """Print a formatted protocol distribution table after capture ends."""
         try:
             total = stats.get("total_packets", 0)
             if total == 0:
-                self.console.print("\n[yellow]No packets captured.[/yellow]")
+                self.console.print("\n[yellow]  No packets were captured.[/yellow]")
                 return
-                
+
             dist = stats.get("protocol_distribution", {})
+            if not dist:
+                return
+
+            self.console.print(Rule(" Protocol Distribution ", style="dim cyan"))
             
-            self.console.print("\n[bold]               Protocol Distribution[/bold]")
-            
-            # Using an explicit Rich Table with minimal borders keeps spacing perfect
-            table = Table(box=box.MINIMAL, expand=False, show_header=True, header_style="bold cyan")
-            table.add_column("Protocol", width=12, justify="left")
-            table.add_column("Count", width=8, justify="right")
-            table.add_column("Percent", width=10, justify="right")
-            table.add_column("Graph", width=25, justify="left")
-            
+            # Fixed-width columns keep the layout clean at any terminal width
+            table = Table(
+                box=box.SIMPLE,
+                show_header=True,
+                header_style="bold dim cyan",
+                show_edge=False,
+                padding=(0, 1),
+            )
+            table.add_column("Protocol", width=11, justify="left", no_wrap=True)
+            table.add_column("Pkts", width=7, justify="right")
+            table.add_column("  %", width=7, justify="right")
+            table.add_column("Distribution", width=22, justify="left")
+
             sorted_dist = sorted(dist.items(), key=lambda x: x[1], reverse=True)
-            
+
             for proto, count in sorted_dist:
                 pct = (count / total) * 100
                 bar_len = int(pct / 5)
@@ -179,41 +188,42 @@ class DisplayManager:
                     f"[{color} bold]{proto}[/{color} bold]",
                     str(count),
                     f"{pct:.1f}%",
-                    f"[bright_blue]{bar}[/bright_blue]"
+                    f"[{color}]{bar}[/{color}]"
                 )
-                
+
             self.console.print(table)
+            self.console.print()
         except Exception:
             pass
 
     def print_error(self, message: str) -> None:
-        """Print an error message to stderr."""
+        """Print a formatted error message to stderr."""
         try:
-            self.console.print(f"[bold red][ERROR][/bold red] {message}", stderr=True)
+            self.console.print(f"[bold red] ERROR [/bold red] {message}", stderr=True)
         except Exception:
             pass
 
     def print_warning(self, message: str) -> None:
-        """Print a warning message."""
+        """Print a formatted warning message."""
         try:
             if not self.quiet:
-                self.console.print(f"[bold yellow][WARN][/bold yellow]  {message}")
+                self.console.print(f"[bold yellow] WARN  [/bold yellow] {message}")
         except Exception:
             pass
 
     def print_info(self, message: str) -> None:
-        """Print an info message."""
+        """Print a formatted informational message."""
         try:
             if not self.quiet:
-                self.console.print(f"[bold cyan][*][/bold cyan]    {message}")
+                self.console.print(f"[bold cyan]  ●  [/bold cyan] {message}")
         except Exception:
             pass
 
     def print_success(self, message: str) -> None:
-        """Print a success message."""
+        """Print a formatted success message."""
         try:
             if not self.quiet:
-                self.console.print(f"[bold green][✓][/bold green]    {message}")
+                self.console.print(f"[bold green]  ✓  [/bold green] {message}")
         except Exception:
             pass
 
@@ -226,21 +236,29 @@ class DisplayManager:
             pass
 
     def print_capture_complete(self, stats: Dict[str, Any], output_file: str = "", duration: float = 0) -> None:
-        """Print the final capture summary."""
+        """Print the final session summary panel when capture ends."""
         try:
             dur_str = format_duration(duration)
-            content = f"📦 Total Packets : {stats.get('total_packets', 0):<15} ⏱️ Duration : {dur_str}\n"
-            content += f"📊 Total Data    : {stats.get('bytes_formatted', '0 B'):<15}"
+            pkts = stats.get('total_packets', 0)
+            data = stats.get('bytes_formatted', '0 B')
+
+            lines = [
+                f"[dim]Packets captured :[/dim]  [bold white]{pkts}[/bold white]",
+                f"[dim]Total data       :[/dim]  [bold white]{data}[/bold white]",
+                f"[dim]Duration         :[/dim]  [bold white]{dur_str}[/bold white]",
+            ]
             if output_file:
-                content += f" 💾 Saved to : {output_file}"
-                
+                lines.append(f"[dim]Saved to         :[/dim]  [bold green]{output_file}[/bold green]")
+
+            content = "\n".join(lines)
+
             panel = Panel(
                 content,
-                title="[bold green]CAPTURE COMPLETE[/bold green]",
+                title="[bold green]  Capture Complete  [/bold green]",
                 title_align="center",
                 border_style="green",
                 box=box.DOUBLE_EDGE,
-                padding=(1, 2)
+                padding=(1, 3),
             )
             self.console.print()
             self.console.print(panel)
