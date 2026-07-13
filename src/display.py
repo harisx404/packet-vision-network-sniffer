@@ -61,13 +61,13 @@ class DisplayManager:
             
             filter_str = ", ".join(filters) if filters else "None"
             
-            content = f"[bright_cyan][+][/bright_cyan] Interface  : {iface_str}\n"
-            content += f"[bright_cyan][+][/bright_cyan] Filters    : {filter_str}\n"
-            content += f"[bright_cyan][+][/bright_cyan] Limit      : {count_str}\n"
-            content += f"[bright_cyan][+][/bright_cyan] Timeout    : {timeout_str}\n"
+            content = f"[bright_cyan]📡[/bright_cyan] Interface  : {iface_str}\n"
+            content += f"[bright_cyan]🎯[/bright_cyan] Filters    : {filter_str}\n"
+            content += f"[bright_cyan]📏[/bright_cyan] Limit      : {count_str}\n"
+            content += f"[bright_cyan]⏱️[/bright_cyan] Timeout    : {timeout_str}\n"
             if config.output_file:
-                content += f"[bright_cyan][+][/bright_cyan] Output     : {config.output_file} ({config.output_format.upper()})\n"
-            content += f"[bright_cyan][+][/bright_cyan] Started    : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                content += f"[bright_cyan]💾[/bright_cyan] Output     : {config.output_file} ({config.output_format.upper()})\n"
+            content += f"[bright_cyan]🚀[/bright_cyan] Started    : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             
             panel = Panel(
                 content,
@@ -135,8 +135,15 @@ class DisplayManager:
                     self.console.print("   └─ " + "  ".join(extra), style="dim cyan")
                     
             if self.show_payload and info.get("payload_preview"):
-                self.console.print("   └─ Payload:", style="dim magenta")
-                self.console.print(info.get("payload_preview"), style="dim white")
+                payload_panel = Panel(
+                    info.get("payload_preview"),
+                    title="[bold magenta]Hex / ASCII Payload Data[/bold magenta]",
+                    title_align="left",
+                    border_style="dim magenta",
+                    padding=(0, 2),
+                    expand=False
+                )
+                self.console.print(payload_panel)
                 self.console.print()
                 
         except Exception:
@@ -222,16 +229,18 @@ class DisplayManager:
         """Print the final capture summary."""
         try:
             dur_str = format_duration(duration)
-            content = f"Total Packets : {stats.get('total_packets', 0):<15} Duration : {dur_str}\n"
-            content += f"Total Data    : {stats.get('bytes_formatted', '0 B'):<15}"
+            content = f"📦 Total Packets : {stats.get('total_packets', 0):<15} ⏱️ Duration : {dur_str}\n"
+            content += f"📊 Total Data    : {stats.get('bytes_formatted', '0 B'):<15}"
             if output_file:
-                content += f" Saved to : {output_file}"
+                content += f" 💾 Saved to : {output_file}"
                 
             panel = Panel(
                 content,
-                title="CAPTURE COMPLETE",
+                title="[bold green]CAPTURE COMPLETE[/bold green]",
+                title_align="center",
                 border_style="green",
-                box=box.DOUBLE
+                box=box.DOUBLE_EDGE,
+                padding=(1, 2)
             )
             self.console.print()
             self.console.print(panel)
