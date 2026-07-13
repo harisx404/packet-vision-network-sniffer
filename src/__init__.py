@@ -1,7 +1,7 @@
 """
 Network Packet Sniffer
 ======================
-A professional network packet analysis tool built with Python and Scapy.
+A network packet analysis tool built with Python and Scapy.
 
 Built for CodeAlpha Cybersecurity Internship.
 Author: Haris (harisx404)

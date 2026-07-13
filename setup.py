@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="CodeAlpha_NetworkSniffer",
     version="1.0.0",
-    description="A professional network packet sniffer built for CodeAlpha",
+    description="A network packet sniffer built for CodeAlpha",
     author="Haris",
     packages=find_packages(),
     install_requires=[
