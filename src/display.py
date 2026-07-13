@@ -30,7 +30,7 @@ class DisplayManager:
         self._packet_line_count = 0
 
     def print_banner(self) -> None:
-        """Print the application startup banner inside a styled panel."""
+        """Print the application startup banner inside a double-border panel."""
         if self.quiet:
             return
         try:
@@ -38,7 +38,6 @@ class DisplayManager:
                 Text(BANNER, justify="center", style="bold white"),
                 border_style="bright_cyan",
                 box=box.DOUBLE,
-                padding=(0, 1),
             )
             self.console.print(panel)
             self.console.print()

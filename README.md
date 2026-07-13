@@ -107,23 +107,44 @@ sudo python main.py --save-pcap traffic.pcap
 
 ## 📸 Screenshots
 
-### Live Packet Inspection & Payload Analysis
-*Monitoring TCP traffic with real-time ANSI-sanitized payload extraction.*
+### Tool Banner & Interface Discovery
+*Startup identity and OS-level network interface detection.*
 
-![Live Capture 1](docs/screenshots/SS1.png)
+![Banner and Interfaces](docs/screenshots/banner-interfaces.png)
 
-![Live Capture 2](docs/screenshots/SS2.png)
+---
 
-![Live Capture 3](docs/screenshots/SS3.png)
+### Live TCP Packet Capture with Verbose Mode
+*Color-coded protocol output with TTL, TCP flags, and sequence numbers.*
 
-![Live Capture 4](docs/screenshots/SS4.png)
+![Live Capture - Startup](docs/screenshots/live_capture1.png)
+
+![Live Capture - Session in Progress](docs/screenshots/live_capture2.png)
+
+---
+
+### Hex / ASCII Payload Inspection
+*Side-by-side hex and sanitized ASCII rendering of raw packet payloads.*
+
+![Payload Inspection - View 1](docs/screenshots/payload_inspection1.png)
+
+![Payload Inspection - View 2](docs/screenshots/payload_inspection2.png)
+
+---
+
+### JSON Data Export
+*Timestamped JSON export with session metadata confirmed on capture complete.*
+
+![JSON Export](docs/screenshots/json_export.png)
+
+---
 
 ### Automated Demo Script
-*Programmatic execution showing graceful thread handling and JSON export.*
+*Programmatic capture using the Python API — no CLI required.*
 
-![Demo Script 1](docs/screenshots/demo_script-1.png)
+![Demo Script - Start](docs/screenshots/demo_script1.png)
 
-![Demo Script 2](docs/screenshots/demo_script-2.png)
+![Demo Script - Complete](docs/screenshots/demo_script2.png)
 
 ## Project Structure
 
