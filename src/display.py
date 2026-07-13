@@ -143,7 +143,7 @@ class DisplayManager:
             pass
 
     def print_stats(self, stats: Dict[str, Any]) -> None:
-        """Print protocol statistics table."""
+        """Print a beautifully aligned protocol distribution summary table."""
         try:
             total = stats.get("total_packets", 0)
             if total == 0:
@@ -152,11 +152,14 @@ class DisplayManager:
                 
             dist = stats.get("protocol_distribution", {})
             
-            table = Table(title="Protocol Distribution", box=box.SIMPLE, show_edge=False)
-            table.add_column("Protocol", style="cyan")
-            table.add_column("Count", justify="right", style="magenta")
-            table.add_column("Percent", justify="right", style="green")
-            table.add_column("Graph", style="blue")
+            self.console.print("\n[bold]               Protocol Distribution[/bold]")
+            
+            # Using an explicit Rich Table with minimal borders keeps spacing perfect
+            table = Table(box=box.MINIMAL, expand=False, show_header=True, header_style="bold cyan")
+            table.add_column("Protocol", width=12, justify="left")
+            table.add_column("Count", width=8, justify="right")
+            table.add_column("Percent", width=10, justify="right")
+            table.add_column("Graph", width=25, justify="left")
             
             sorted_dist = sorted(dist.items(), key=lambda x: x[1], reverse=True)
             
@@ -166,10 +169,10 @@ class DisplayManager:
                 bar = "█" * bar_len + "░" * (20 - bar_len)
                 color = PROTOCOL_COLORS.get(proto, "white")
                 table.add_row(
-                    f"[{color}]{proto}[/{color}]",
+                    f"[{color} bold]{proto}[/{color} bold]",
                     str(count),
                     f"{pct:.1f}%",
-                    bar
+                    f"[bright_blue]{bar}[/bright_blue]"
                 )
                 
             self.console.print(table)
