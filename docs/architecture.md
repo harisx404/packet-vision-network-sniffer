@@ -1,5 +1,5 @@
 # Architectural Documentation & Engineering Guide
-**Network Packet Sniffer | CodeAlpha Internship**
+**Network Packet Sniffer**
 
 This document serves as the technical wiki for understanding the underlying mechanics of the Network Packet Sniffer. It is intended for project maintainers, recruiters reviewing technical depth, and open-source contributors.
 
@@ -22,6 +22,7 @@ The tool is built on a highly modular architecture that completely isolates pack
        ├→ [PacketAnalyzer] (Layer Dissection & Flag Extraction)
        ├→ [DisplayManager] (ANSI-Sanitized Rich UI Rendering)
        └→ [PacketLogger] (Memory Capped JSON/PCAP Export)
+```
 
 ## 2. Core Module Details
 
@@ -57,41 +58,37 @@ The tool is built on a highly modular architecture that completely isolates pack
 ### A. Handling High Traffic Environments
 - **Scenario**: A busy university network or ISP connection.
 - **Mitigation**:
-    1.  **Queue Overflow**:
-        The `put_nowait()` method will raise a `queue.Full` exception if the buffer is full. The `_packet_handler` thread catches this and silently drops the packet, prioritizing system stability over completeness.
+    1.  **Queue Overflow**: The `put_nowait()` method will raise a `queue.Full` exception if the buffer is full. The `_packet_handler` thread catches this and silently drops the packet, prioritizing system stability over completeness.
     2.  **CPU Load**: Heavy string formatting in `analyzer.py` can be costly.
     3.  **Solution**: The `PacketAnalyzer` returns a structured dictionary. The `DisplayManager` is optimized to only update specific cells in the `Table` widget rather than redrawing the entire screen.
 
 ### B. Memory Management
-- **Stateless Capture**: The `sniff()` function is configured with `store=0` (or `store=False` in newer versions) to prevent Scapy from building a linked list of all packets in RAM.
-- **Buffer Control**: The consumer loop strictly enforces `if len(self.packet_queue) > MAX_MEMORY_PACKETS:`. This ensures the application can run indefinitely on a standard laptop.
+- **Stateless Capture**: The `sniff()` function is configured with `store=False` to prevent Scapy from building a linked list of all packets in RAM.
+- **Buffer Control**: The consumer loop strictly enforces buffer limits, ensuring the application can run indefinitely on a standard laptop without memory leaks.
 
 ## 4. Security Architecture
 
 ### A. Privilege Escalation Prevention
-- **Root Detection**: The application uses `os.geteuid()` (Linux/macOS) to detect root privileges. It crashes immediately if not root, preventing the application from entering a "failed" state where it might display partial data.
+- **Root Detection**: The application uses `os.geteuid()` (Linux/macOS) and `ctypes` (Windows) to detect root/admin privileges. It crashes immediately with a clean exit if not root, preventing the application from entering a "failed" state where it might display partial data.
 
-### B. Terminal Injection Prevention (The "Man-in-the-Middle" Payload)
+### B. Terminal Injection Prevention
 - **The Threat**: A malicious actor could send a packet containing `\x1b[2J\x1b[3J` (Clear Screen) or `\x1b[31m` (Red Text).
-- **The Fix**:
-The `PacketAnalyzer.format_payload` method explicitly replaces `\x1b` and `\033` sequences with a neutral marker (`[ANSI]`).
+- **The Fix**: The `PacketAnalyzer.format_payload` method explicitly replaces all non-printable ASCII characters (including `\x1b` and `\033` sequences) with a neutral `.` character.
 
 ## 5. Testing Strategy
 
 ### A. Unit Testing (pytest)
-- **Mocking**: Uses `pytest-mock` and `unittest.mock` to patch Scapy's `sniff()` function.
 - **Isolate Layer Behavior**: Tests for `PacketAnalyzer` verify that TCP flags are correctly extracted from mock packet objects without needing a live network interface.
 - **Filter Validation**: Uses `ipaddress` logic to verify CIDR masking.
 
 ### B. Integration Testing
-- **Queue Safety**: Tests that the producer/consumer pattern does not deadlock under high load.
-- **File I/O**: Ensures JSON and CSV exports do not corrupt data.
+- **File I/O**: Ensures JSON and CSV exports do not corrupt data and can serialize complex network objects.
 
 ## 6. Environment & Dependencies
 
 ### A. OS Compatibility
 - **Linux/macOS**: Full support via Scapy's raw sockets.
-- **Windows**: Requires Npcap to be installed manually. The code includes a check for `winreg` to detect Npcap.
+- **Windows**: Requires Npcap to be installed manually.
 
 ### B. Python Environment
 - **Version**: Python 3.9+

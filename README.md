@@ -108,4 +108,4 @@ Contributions are welcome! Please read the [CONTRIBUTING.md](CONTRIBUTING.md) fo
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
-*Built with ❤️ for the CodeAlpha Internship Program.*
+*Engineered for the CodeAlpha Internship Program. Developed with a focus on performance, memory safety, and terminal security.*
