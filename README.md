@@ -2,6 +2,9 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.12+-3776AB.svg?style=flat&logo=python&logoColor=white" alt="Python 3.12+">
+  <a href="https://github.com/harisx404/packet-vision-network-sniffer/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/harisx404/packet-vision-network-sniffer/ci.yml?branch=main&label=CI" alt="CI Status" />
+  </a>
   <img src="https://img.shields.io/badge/License-MIT-22c55e.svg?style=flat" alt="License MIT">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-6366f1.svg?style=flat" alt="Platform">
   <img src="https://img.shields.io/badge/Scapy-2.5+-FF4B4B.svg?style=flat" alt="Scapy">
