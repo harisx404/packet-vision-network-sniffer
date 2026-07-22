@@ -24,10 +24,13 @@ from src.sniffer import PacketSniffer
 
 def run_demo() -> None:
     """Execute a short automated capture to validate the sniffer pipeline."""
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+        
     print(f"\n  {TOOL_INFO['name']} — Demo Mode")
-    print(f"  Capturing 20 packets and exporting to JSON.\n")
+    print("  Capturing 20 packets and exporting to JSON.\n")
     print("  Press Ctrl+C at any time to stop.\n")
-    print("  " + "─" * 50)
+    print("  " + "=" * 50)
 
     config = Config(
         packet_count=20,

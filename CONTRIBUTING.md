@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest in contributing to the Network Packet Sniffer. This document outlines the development guidelines, architectural constraints, and the pull request process.
+Thank you for your interest in contributing to **PacketVision Network Sniffer**. This document outlines the development guidelines, architectural constraints, and the pull request process.
 
 ## Getting Started
 

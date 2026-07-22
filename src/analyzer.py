@@ -240,27 +240,37 @@ class PacketAnalyzer:
             return {}
 
     def _analyze_dns(self, packet: Packet) -> Dict[str, Any]:
-        """Extract DNS queries and answers."""
+        """Extract DNS queries and answers safely."""
         try:
             dns = packet[DNS]
             queries = []
             answers = []
             
-            if dns.qdcount > 0 and dns.qd:
-                for i in range(dns.qdcount):
+            if dns.qd:
+                qd_list = dns.qd if isinstance(dns.qd, list) else [dns.qd]
+                for qd in qd_list:
                     try:
-                        qname = dns.qd[i].qname.decode("utf-8", errors="ignore").rstrip('.')
-                        if qname: queries.append(qname)
-                    except Exception: pass
+                        qname = getattr(qd, 'qname', None)
+                        if qname:
+                            if isinstance(qname, bytes):
+                                qname = qname.decode("utf-8", errors="ignore")
+                            qname = str(qname).rstrip('.')
+                            if qname:
+                                queries.append(qname)
+                    except Exception:
+                        pass
             
-            if dns.ancount > 0 and dns.an:
-                for i in range(dns.ancount):
+            if dns.an:
+                an_list = dns.an if isinstance(dns.an, list) else [dns.an]
+                for an in an_list:
                     try:
-                        rdata = dns.an[i].rdata
-                        if isinstance(rdata, bytes):
-                            rdata = rdata.decode("utf-8", errors="ignore")
-                        answers.append(str(rdata))
-                    except Exception: pass
+                        rdata = getattr(an, 'rdata', None)
+                        if rdata:
+                            if isinstance(rdata, bytes):
+                                rdata = rdata.decode("utf-8", errors="ignore")
+                            answers.append(str(rdata))
+                    except Exception:
+                        pass
 
             return {
                 "dns_queries": queries,

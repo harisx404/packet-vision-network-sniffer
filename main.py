@@ -14,6 +14,9 @@ from src.sniffer import PacketSniffer
 from src.utils import get_available_interfaces
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
     # Python version check
     if sys.version_info < (3, 9):
         print("Error: Python 3.9 or higher is required.")

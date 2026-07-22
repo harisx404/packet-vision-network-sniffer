@@ -1,6 +1,6 @@
 # Architecture & Engineering Guide
 
-> This document is the technical reference for the Network Packet Sniffer. It covers
+> This document is the technical reference for **PacketVision Network Sniffer**. It covers
 > the concurrency model, memory safety design, security controls, and testing strategy.
 > Intended for project maintainers, contributors, and technical reviewers.
 
