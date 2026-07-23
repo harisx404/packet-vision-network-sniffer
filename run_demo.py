@@ -44,14 +44,8 @@ def run_demo() -> None:
 
     try:
         sniffer.start()
-
-        # Block until the daemon threads finish
-        while sniffer._running:
-            time.sleep(0.5)
-
     except KeyboardInterrupt:
         print("\n  [!] Demo interrupted by user.")
-        sniffer.stop()
         sys.exit(0)
 
 

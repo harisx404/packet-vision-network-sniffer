@@ -80,6 +80,7 @@ class PacketSniffer:
                 time.sleep(0.1)
         except KeyboardInterrupt:
             self.display.print_info("Stopping capture... (Ctrl+C detected)")
+        finally:
             self.stop()
 
     def stop(self) -> None:
