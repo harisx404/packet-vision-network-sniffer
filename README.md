@@ -108,46 +108,49 @@ sudo python main.py -c 50 -o capture.csv --format csv
 sudo python main.py --save-pcap traffic.pcap
 ```
 
-## 📸 Screenshots
+## 📸 Demonstration & Terminal Screenshots
 
-### Tool Banner & Interface Discovery
-*Startup identity and OS-level network interface detection.*
+### 1. Tool Banner & Network Interface Discovery
+*Startup identity, ASCII logo panel, and OS-level network interface auto-detection.*
 
-![Banner and Interfaces](docs/screenshots/banner-interfaces.png)
-
----
-
-### Live TCP Packet Capture with Verbose Mode
-*Color-coded protocol output with TTL, TCP flags, and sequence numbers.*
-
-![Live Capture - Startup](docs/screenshots/live_capture1.png)
-
-![Live Capture - Session in Progress](docs/screenshots/live_capture2.png)
+![Banner and Interface Discovery](<docs/screenshots/Banner & Interface Discovery.png>)
 
 ---
 
-### Hex / ASCII Payload Inspection
-*Side-by-side hex and sanitized ASCII rendering of raw packet payloads.*
+### 2. Live TCP Packet Capture Stream
+*Color-coded protocol streaming displaying TTL, TCP flags (`SYN`, `ACK`, `PSH`), sequence numbers, and packet sizes.*
 
-![Payload Inspection - View 1](docs/screenshots/payload_inspection1.png)
+![Live TCP Capture Stream Part 1](<docs/screenshots/Live TCP Capture Stream-1.png>)
 
-![Payload Inspection - View 2](docs/screenshots/payload_inspection2.png)
-
----
-
-### JSON Data Export
-*Timestamped JSON export with session metadata confirmed on capture complete.*
-
-![JSON Export](docs/screenshots/json_export.png)
+![Live TCP Capture Stream Part 2](<docs/screenshots/Live TCP Capture Stream-2.png>)
 
 ---
 
-### Automated Demo Script
-*Programmatic capture using the Python API — no CLI required.*
+### 3. Side-by-Side Hex & ASCII Payload Inspection
+*Deep packet dissection showing formatted hexadecimal bytes alongside sanitized printable ASCII payload content.*
 
-![Demo Script - Start](docs/screenshots/demo_script1.png)
+![Side-by-Side Hex & ASCII Payload Inspection](<docs/screenshots/Side-by-Side Hex & ASCII Payload Inspection.png>)
 
-![Demo Script - Complete](docs/screenshots/demo_script2.png)
+---
+
+### 4. Data Export & Session Summary Statistics
+*Automated capture complete hook rendering output file confirmations and the final protocol distribution table.*
+
+![Automated JSON & PCAP Export with Summary Table](<docs/screenshots/Automated JSON & PCAP Export with Summary Table.png>)
+
+---
+
+### 5. Programmatic API Demo Mode
+*Standalone automated demo script (`python run_demo.py`) executing a zero-CLI smoke test.*
+
+![Programmatic API Demo Mode](<docs/screenshots/Programmatic API Demo Mode.png>)
+
+---
+
+### 6. Automated Pytest Unit Test Suite
+*15/15 unit tests passing cleanly with mock Scapy packet fixtures.*
+
+![Automated Pytest Unit Test Suite](<docs/screenshots/Automated Pytest Unit Test Suite.png>)
 
 ## Project Structure
 
